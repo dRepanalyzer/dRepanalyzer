@@ -1,0 +1,470 @@
+#!/usr/bin/python3
+
+# LIBRARIES IMPORT
+
+import argparse 
+import sys
+import subprocess as sp
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from fpdf import FPDF
+from datetime import datetime
+from alive_progress import alive_bar
+
+
+
+
+
+# DEFINITION OF PDF CLASS (NECESSARY FOR THE REPORT COMPILATION)
+
+class PDF(FPDF):
+    
+    def __init__(self):
+        super().__init__()
+        
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', '', 12)
+        self.cell(0, 8, 'Produced with dRepanalyzer', 0, 0, 'R') 
+        
+        
+        
+        
+        
+# SHELLL PARAMETERS DEFINITION
+
+parser = argparse.ArgumentParser(prog = 'DREPANALYZER',
+                                 description = "dRepanalyzer can compute a resampling procedure and produce a sarefaction plot on Cdb.txt dRep output files and or on MAG_coverage.txt files produced by checkM-coverage")
+parser.add_argument('-dRep',
+                    help = "perform a resampling a produce a rarefaction plot on a dRep output file",
+                    action = "store_true")
+parser.add_argument('-MAG_coverage',
+                    help = "perform a resampling a produce a rarefaction plot on a checkM-coverage output file",
+                    action = "store_true")
+parser.add_argument('-check_dependencies',
+                    help = "check if the script is runnable on your system",
+                    action = "store_true")
+parser.add_argument('-description',
+                    help = "brief description of the dRepanalyzer project",
+                    action = "store_true")
+
+parser.add_argument('-path', 
+                    help = "dRep or MAG_coverage file path", 
+                    type = str)
+parser.add_argument('-N', 
+                    help = "minimum sample dimension", 
+                    type = int,
+                    default = 100)
+parser.add_argument('-M', 
+                    help = "maximum sample dimension", 
+                    type = int,
+                    default = 1000)
+parser.add_argument('-k', 
+                    help = "rncrement per iteration", 
+                    type = int,
+                    default = 10)
+parser.add_argument('-RR', help = "resampling rate per iteration", 
+                    type = int,
+                    default = 10)
+parser.add_argument('-filter', help = "filter the MAGs which cluster alone. Default is False", 
+                    action = "store_true")
+parser.add_argument('-threshold', help = "minimum threshold to identify a bin as a present species", 
+                    type = float,
+                    default = 0.01)
+parser.add_argument('-methods', help = "choose the method you want. Be sure the header format is 'sample tag : method tag'", 
+                    type = str,
+                    default = "sorted: % community", nargs = "+")
+parser.add_argument('-out', '-o', help = "output label. Default 'dRepanalyzer_out'", 
+                    type = str,
+                    default = "dRepanalyzer_out")
+
+args = parser.parse_args()
+
+
+
+
+
+## FIRST PART
+
+def dRepAnalyzer(args):
+
+    # Data import
+
+    cdb_PATH = args.path
+    cdb = pd.read_csv(cdb_PATH, index_col = 0)
+
+    # Define the parameters
+
+    N = args.N
+    M = args.M
+    k = args.k
+    RR = args.RR
+    
+    if args.filter == True:
+        cluster_greter_than_one = cdb.secondary_cluster.value_counts(normalize = False,sort = False) > 1
+        filt = cdb.secondary_cluster.isin(cluster_greter_than_one[cluster_greter_than_one].index)
+        cdb = cdb.loc[filt,:]
+
+    # Stop
+
+    try:
+        if M > cdb.shape[0]:
+            raise ValueError
+    except ValueError:
+        print("")
+        print("M must be smaller than the number of genomes in the file. In this case {}".format(cdb.shape[0]))
+        sys.exit()
+        
+    print("Initialization")
+
+    # Computing the statistics
+
+    number_of_genome = {}
+    average_number_of_clusters = {}
+    minimum_number_of_clusters = {}
+    maximum_number_of_clusters = {}
+    
+    print("Starting resampling")
+    
+    i = 0
+    with alive_bar(len(np.arange(N,M,k)), title='Processing...') as bar:
+        for genome_index in np.arange(N,M,k):
+            number_of_genome[i] = genome_index
+            
+            length = []
+            for resample in range(0,RR):
+                length.append(len(pd.unique(cdb.sample(int(genome_index)).iloc[:,0])))
+                
+            average_number_of_clusters[i] = np.mean(length)
+            minimum_number_of_clusters[i] = np.min(length)
+            maximum_number_of_clusters[i] = np.max(length)
+            
+            i += 1
+            bar()
+        
+    print("Resampling finished")   
+
+    print("Creating the results directory") 
+
+    sp.run(["mkdir dRepanalyzer_results"], shell=True, capture_output=True, text=True)
+
+    d = {"Number of genome": number_of_genome,
+        "Average number of clusters": average_number_of_clusters,
+        "Minimum number of clusters": minimum_number_of_clusters,
+        "Maximum number of clusters": maximum_number_of_clusters
+    }
+
+    results = pd.DataFrame(d)
+
+    print("Building the .res tabular file")
+
+    results.to_csv("./dRepanalyzer_results/" + args.out + ".res", sep = "\t")
+
+    results.plot(x = 'Number of genome', 
+                 y = ['Average number of clusters', 'Minimum number of clusters', 'Maximum number of clusters'],
+                 figsize = [10,10])
+    plt.grid()
+    plt.title("Rarefaction curve", fontsize = 20)
+    plt.xlabel("Number of genomes", fontsize = 18)
+    plt.ylabel("Number of clusters", fontsize = 18)
+    plt.xticks(results.iloc[:,0], rotation = 90)
+    plt.yticks(np.linspace(results.iloc[0,1], results.iloc[-1,1], results.shape[0]))
+
+    print("Building the .pdf report")
+        
+    plt.savefig("./dRepanalyzer_results/temp.png", dpi = 250)
+    
+    description = "The rarefaction plot is produced by a resampling procedure starting from a minimum sample size N to the maximum sample size M. At each iteration the sample size increased by k and per each sample size the sampling was repeated RR times to compute the mean, the minimum and the maximum number of species detectable by a particular sample size. If filter is true, the cluster detected just one time gets taken out."
+    parameters = "- Minimum sample size (N): {} \n- Maximum sample size (M): {} \n- Growth iteration rate (k): {} \n- Resample rate (RR): {}\n- Filter under represented cluster: {}".format(N,M,k,RR,str(args.filter))
+
+    ch = 8
+
+    pdf = PDF()
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 24)
+    pdf.cell(w=0, h=20, txt="dRepanalyzer report", ln=1, align = "C")
+
+    pdf.set_font('Arial', 'U', 16)
+    pdf.cell(w=30, h=ch, txt="Date", ln=0)
+    pdf.set_font('Arial', '', 16)
+    pdf.cell(w=30, h=ch, txt=datetime.now().strftime("%d/%m/%Y %H:%M:%S"), ln=1)
+
+    pdf.set_font('Arial', 'U', 16)
+    pdf.cell(w=30, h=ch, txt="Input", ln=0)
+    pdf.set_font('Arial', '', 16)
+    pdf.cell(w=30, h=ch, txt=args.path.split("/")[-1], ln=1)
+
+    pdf.set_font('Arial', 'U', 16)
+    pdf.cell(w=30, h=ch, txt="Output", ln=0)
+    pdf.set_font('Arial', '', 16)
+    pdf.cell(w=30, h=ch, txt=args.out, ln=1)
+    pdf.ln(ch)
+
+
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(w=0, h=4, txt="Rarefaction plot", ln=1)
+    pdf.ln(ch)
+
+    pdf.set_font('Arial', '', 12)
+    pdf.multi_cell(w=0, h=4, txt=description)
+    #pdf.ln(4)
+
+    pdf.image('./dRepanalyzer_results/temp.png', x = 30, y = None, w = 150, h = 0, type = 'PNG', link = '')
+
+    pdf.set_font('Arial', '', 12)
+    pdf.multi_cell(w=0, h=6, txt=parameters)
+    pdf.ln(ch)
+
+    pdf.output("./dRepanalyzer_results/" + args.out + ".pdf", 'F')
+
+    sp.run(["rm ./dRepanalyzer_results/temp.png"], shell=True, capture_output=True, text=True)
+
+    print("")
+    print("Done!")
+    
+    sys.exit(1)
+
+    
+    
+    
+    
+    
+## SECOND PART
+
+def mag_coverageAnalyzer(args):
+    
+    # Data import
+        
+    mag_coverage_PATH = args.path
+    mag = pd.read_csv(mag_coverage_PATH, sep = "\t", index_col = 0)
+    filt = np.array([col.find(" ".join(args.methods)) for col in mag.columns]) > 0
+    mag = mag.loc[:"unbinned_contigs",filt]
+
+    # Define the parameters
+    
+    threshold = args.threshold
+    N = args.N
+    M = args.M
+    k = args.k
+    RR = args.RR
+
+    try:
+        if len(mag.columns) == 0: 
+            raise ValueError
+    except ValueError:
+        print("")
+        print("Something went wrong. Check the methods you chose.")
+        sys.exit()
+    
+    try:
+        if M > mag.shape[1] or threshold < 0: 
+            raise ValueError
+    except ValueError:
+        print("")
+        print("M must be smaller than the number of genomes, in this case {}. Also the threshold must be positive.".format(mag.shape[1]))
+        sys.exit()
+
+    print("Initialization")
+        
+    number_of_samples = {}
+    average_number_of_species = {}
+    minimum_number_of_species = {}
+    maximum_number_of_species = {}
+
+    print("Starting resampling")
+
+    i = 0
+    with alive_bar(len(np.arange(N,M + 1,k)), title='Processing...') as bar:
+        for sample_number_index in np.arange(N,M + 1,k):
+            number_of_samples[i] = sample_number_index
+            
+            species_resampling = []
+            for resample_index in range(0,RR):
+                # We sample the file with a samplesize which start from N till M. Then we filter mark which genome is 
+                # higher than the threshold to filter them below
+                temp = mag.sample(sample_number_index, axis = 1) >= threshold 
+                # We filter the genomes which have a relative abundance lower than the threshold in all the samples
+                # We insert in t the number of genomes which are highert than the threshold in the samples
+                t = temp[temp.sum(axis = 1) > 0].shape[0]
+                
+                species_resampling.append(t)
+            
+            average_number_of_species[i] = np.mean(species_resampling)
+            minimum_number_of_species[i] = np.max(species_resampling)
+            maximum_number_of_species[i] = np.min(species_resampling)
+            
+            i += 1
+            bar()
+        
+    print("Resampling finished")
+    
+    print("Creating the results directory") 
+    
+    sp.run(["mkdir dRepanalyzer_MAG_coverage_results"], shell=True, capture_output=True, text=True)
+
+    d_2 = {"Number of samples": number_of_samples,
+        "Average number of species": average_number_of_species,
+        "Minimum number of species": minimum_number_of_species,
+        "Maximum number of species": maximum_number_of_species
+    }
+    
+    results_2 = pd.DataFrame(d_2)
+    
+    print("Building the .res tabular file")
+    
+    results_2.to_csv("./dRepanalyzer_MAG_coverage_results/" + args.out + "_MAG_coverage.res", sep = "\t")
+    
+    results_2.plot(x = 'Number of samples', 
+                   y = ['Average number of species', 'Minimum number of species', 'Maximum number of species'],
+                   figsize = [10,10])
+    plt.title("Rarefaction curve", fontsize = 20)
+    plt.grid()
+    plt.xlabel("Number of samples", fontsize = 18)
+    plt.ylabel("Number of species", fontsize = 18)
+    plt.xticks(results_2.iloc[:,0], rotation = 90)
+    plt.yticks(np.linspace(results_2.iloc[0,1], results_2.iloc[-1,1], results_2.shape[0]))
+
+    print("Building the .pdf report")
+        
+    plt.savefig("./dRepanalyzer_MAG_coverage_results/temp.png", dpi=250)
+    
+    columns_temp = ", ".join(np.unique([col.split(":")[1] for col in mag.columns]).tolist())
+    
+    description = "The rarefaction plot is produced by a resampling starting from the minimum sample size N to the maximum sample size M. At each iteration the sample size increased of k and per each sample size the sampling was repeated RR times to compute the mean, the minimum and the maximum number of species detectable by a particular sample size. A MAG is present or not based on the threshold."
+    parameters = "- Threshold: {}\n- Minimum sample size (N): {} \n- Maximum sample size (M): {} \n- Growth iteration rate (k): {} \n- Resample rate (RR): {} \n- Methods: {}".format(threshold,N,M,k,RR,columns_temp)
+
+    ch = 8
+
+    pdf = PDF()
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 24)
+    pdf.cell(w=0, h=20, txt="dRepanalyzer MAG_coverage report", ln=1, align = "C")
+
+    pdf.set_font('Arial', 'U', 16)
+    pdf.cell(w=30, h=ch, txt="Date", ln=0)
+    pdf.set_font('Arial', '', 16)
+    pdf.cell(w=30, h=ch, txt=datetime.now().strftime("%d/%m/%Y %H:%M:%S"), ln=1)
+
+    pdf.set_font('Arial', 'U', 16)
+    pdf.cell(w=30, h=ch, txt="Input", ln=0)
+    pdf.set_font('Arial', '', 16)
+    pdf.cell(w=30, h=ch, txt=args.path.split("/")[-1], ln=1)
+
+    pdf.set_font('Arial', 'U', 16)
+    pdf.cell(w=30, h=ch, txt="Output", ln=0)
+    pdf.set_font('Arial', '', 16)
+    pdf.cell(w=30, h=ch, txt=args.out, ln=1)
+    pdf.ln(ch)
+
+
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(w=0, h=4, txt="Rarefaction plot", ln=1)
+    pdf.ln(ch)
+
+    pdf.set_font('Arial', '', 12)
+    pdf.multi_cell(w=0, h=4, txt=description)
+    #pdf.ln(4)
+
+    pdf.image('./dRepanalyzer_MAG_coverage_results/temp.png', x = 35, y = None, w = 140, h = 0, type = 'PNG', link = '')
+
+    pdf.set_font('Arial', '', 12)
+    pdf.multi_cell(w=0, h=6, txt=parameters)
+    pdf.ln(ch)
+
+    pdf.output("./dRepanalyzer_MAG_coverage_results/" + args.out + "_MAG_coverage.pdf", 'F')
+
+    sp.run(["rm ./dRepanalyzer_MAG_coverage_results/temp.png"], shell=True, capture_output=True, text=True)
+
+    print("\n")
+    print("Done!")
+    
+    sys.exit(1)
+
+    
+    
+    
+    
+    
+def check_dependencies():
+    try:
+        import argparse 
+        import sys
+        import subprocess
+        import numpy 
+        import pandas 
+        import matplotlib.pyplot
+        from fpdf import FPDF
+        from datetime import datetime
+        from alive_progress import alive_bar
+        
+        print("")
+        print("OK! The system can run dRepanalyzer")
+        
+    except ImportError as e:
+        print("")
+        print(f"PAY ATTENTION! Missing dependencies: {str(e)}")
+    sys.exit(1)
+        
+        
+        
+        
+        
+def description():
+    print("")
+    print('DREPANALYZER v1.0 (07 Jun 2023)')
+    print('Lorenzo Banchieri, Aleksandra Grujic, Claudio Zampato   University of Padova')
+    print("")
+    print("""dRepanalyzer is a tool that computes a resampling procedure and produces a rarefaction plot based on Cdb.csv dRep output files or on MAG_coverage.tsv files produced by checkM-coverage. This script is a student project developed during Microbial Metagenomics laboratory classes, which is a part of the Master Degree Programme in Molecular Biology at the University of Padova. The project was developed under the supervision of Prof. Stefano Campanaro. 
+        
+    The objective of this script is to produce a rarefaction plot which underlines the abundance of samples needed to dissect the microbial enviroment structure.
+    
+    After the running of the scprit, the results will be stored in a directory inside the actual working directory. There will be two file types:
+    -res -> Which is a tsv file which contains the results of the resampling procedure
+    -pdf -> Which contains the report about the script running and the final rarefaction plot
+    
+    Example: dRepanalyzer -MAG_coverage -path MAG_coverage.txt -N 1 -M 100 -k 10 -RR 20 -threshold 0.01 -out test
+    """)
+    sys.exit(1)
+    
+    
+    
+    
+    
+def home():
+    print("")
+    print('DREPANALYZER v1.0 (07 Jun 2023)')
+    print('Lorenzo Banchieri, Aleksandra Grujic, Claudio Zampato   University of Padova')
+    
+    print("""
+    Example: dRepanalyzer -MAG_coverage -path MAG_coverage.txt -N 1 -M 100 -k 10 -RR 20 -threshold 0.01 -out test
+                
+    Possible modes:
+        -dRep               -> Resample and produce a rarefaction curve of a dRep file output
+        -MAG_coverage       -> Resample and produce a rarefaction curve of a MAG_coverage file output
+        -check_dependencies -> Check which dependencies are properly installed
+        -description        -> Basic information about the dRepanalyzer project
+    """)
+    sys.exit(1)
+    
+    
+    
+    
+    
+## MAIN
+
+if args.dRep == True:
+    dRepAnalyzer(args)
+elif args.MAG_coverage == True:
+    mag_coverageAnalyzer(args)
+elif args.check_dependencies == True:
+    check_dependencies()
+elif args.description == True:
+    description()
+elif args.filter == True:
+    print("""usage: DREPANALYZER [-h] [-dRep] [-MAG_coverage] [-check_dependencies] [-description] [-path PATH] [-N N] [-M M] [-k K] [-RR RR] [-filter]
+                    [-threshold THRESHOLD] [-methods METHODS [METHODS ...]] [-out OUT]
+DREPANALYZER: error: argument -filter: dRepanalyzer can't do nothing if you don't specify th options.""")
+
+else:
+    home()
