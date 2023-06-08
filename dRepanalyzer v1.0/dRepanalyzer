@@ -1,38 +1,32 @@
 #!/usr/bin/python3
 
-# LIBRARIES IMPORT
+# CHECK OF THE LIBRARIES 
 
-import argparse 
-import sys
-import subprocess as sp
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from fpdf import FPDF
-from datetime import datetime
-from alive_progress import alive_bar
-
-
-
-
-
-# DEFINITION OF PDF CLASS (NECESSARY FOR THE REPORT COMPILATION)
-
-class PDF(FPDF):
-    
-    def __init__(self):
-        super().__init__()
+def check_dependencies():
+    try:
+        import argparse 
+        import sys
+        import subprocess
+        import numpy 
+        import pandas 
+        import matplotlib.pyplot
+        from fpdf import FPDF
+        from datetime import datetime
+        from alive_progress import alive_bar
         
-    def footer(self):
-        self.set_y(-15)
-        self.set_font('Arial', '', 12)
-        self.cell(0, 8, 'Produced with dRepanalyzer', 0, 0, 'R') 
+        print("")
+        print("OK! The system can run dRepanalyzer")
         
-        
-        
-        
+    except ImportError as e:
+        print("")
+        print(f"PAY ATTENTION! Missing dependencies: {str(e)}")
+    sys.exit(1)
+
+
+
         
 # SHELLL PARAMETERS DEFINITION
+import argparse 
 
 parser = argparse.ArgumentParser(prog = 'DREPANALYZER',
                                  description = "dRepanalyzer can compute a resampling procedure and produce a sarefaction plot on Cdb.txt dRep output files and or on MAG_coverage.txt files produced by checkM-coverage")
@@ -82,6 +76,37 @@ parser.add_argument('-out', '-o', help = "output label. Default 'dRepanalyzer_ou
 args = parser.parse_args()
 
 
+
+if args.check_dependencies == True:
+    check_dependencies()
+
+
+
+# LIBRARIES IMPORT
+
+import sys
+import subprocess as sp
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from fpdf import FPDF
+from datetime import datetime
+from alive_progress import alive_bar
+
+
+
+
+# DEFINITION OF PDF CLASS (NECESSARY FOR THE REPORT COMPILATION)
+
+class PDF(FPDF):
+    
+    def __init__(self):
+        super().__init__()
+        
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', '', 12)
+        self.cell(0, 8, 'Produced with dRepanalyzer', 0, 0, 'R') 
 
 
 
@@ -238,7 +263,13 @@ def mag_coverageAnalyzer(args):
         
     mag_coverage_PATH = args.path
     mag = pd.read_csv(mag_coverage_PATH, sep = "\t", index_col = 0)
-    filt = np.array([col.find(" ".join(args.methods)) for col in mag.columns]) > 0
+    
+    if type(args.methods) == str:
+        temp_string = args.methods
+    else:
+        temp_string = " ".join(args.methods)
+        
+    filt = np.array([col.find(temp_string) for col in mag.columns]) > 0
     mag = mag.loc[:"unbinned_contigs",filt]
 
     # Define the parameters
@@ -386,25 +417,7 @@ def mag_coverageAnalyzer(args):
     
     
     
-def check_dependencies():
-    try:
-        import argparse 
-        import sys
-        import subprocess
-        import numpy 
-        import pandas 
-        import matplotlib.pyplot
-        from fpdf import FPDF
-        from datetime import datetime
-        from alive_progress import alive_bar
-        
-        print("")
-        print("OK! The system can run dRepanalyzer")
-        
-    except ImportError as e:
-        print("")
-        print(f"PAY ATTENTION! Missing dependencies: {str(e)}")
-    sys.exit(1)
+
         
         
         
@@ -457,8 +470,6 @@ if args.dRep == True:
     dRepAnalyzer(args)
 elif args.MAG_coverage == True:
     mag_coverageAnalyzer(args)
-elif args.check_dependencies == True:
-    check_dependencies()
 elif args.description == True:
     description()
 elif args.filter == True:
