@@ -1,7 +1,8 @@
 
 # dRepanalyzer
 
-![logo] (https://github.com/AleksG98/dRepanalyzer/blob/889c29d860daaf1854c097f15621c61d226c6cc3/dRepanalyzer_logo.png)
+![dRepanalyzer_logo](https://github.com/AleksG98/dRepanalyzer/assets/135729246/20108035-b00a-409b-824e-8b7da12d957a)
+
 
 <details>
 <summary>Disclaimer</summary>
