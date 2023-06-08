@@ -17,7 +17,7 @@ The objective of this script is to produce a rarefraction plot which underlines 
 
 ## Requirements
 
-Requirements to run this script are: The software was developed based on python 3.10. It requires several common libraries. To discover if a system has the right requirements, run -check_dependencies.
+Requirements to run this script are: The software was developed based on python 3.10. It requires several common libraries.
 
 ## Inputs
 
