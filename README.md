@@ -55,7 +55,7 @@ As a result of running the software, you get two types of files:
 
 ## Acknowledgments
 
-This script was developed by students: Claudio Zampato, Lorenzo Banchieri and Aleksandra Grujic. 
+This script was developed by Claudio Zampato (main contributor), Lorenzo Banchieri, Aleksandra Grujic.
 
 
 
