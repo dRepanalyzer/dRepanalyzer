@@ -1,0 +1,13 @@
+	Number of samples	Average number of species	Minimum number of species	Maximum number of species
+0	1	191.5	271	94
+1	2	249.2	298	163
+2	3	281.2	322	186
+3	4	301.6	331	219
+4	5	313.5	337	226
+5	6	323.5	337	309
+6	7	319.2	340	228
+7	8	331.3	340	316
+8	9	336.9	340	328
+9	10	337.8	340	331
+10	11	339.5	340	335
+11	12	340.0	340	340
