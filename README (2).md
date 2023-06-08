@@ -2,9 +2,9 @@
 # dRepanalyzer
 
 <details>
-    <summary>Disclaimer<summary/>
+  <summary>Disclaimer<summary/>
 
-    This script is a project developed by students of a Molecular Biology Master's Programme at the University of Padova, during the lab classes in course Microbial Metagenomics. The project was developed under the supervision of Prof. Stefano Campanaro.
+  This script is a project developed by students of a Molecular Biology Master's Programme at the University of Padova, during the lab classes in course Microbial Metagenomics. The project was developed under the supervision of Prof. Stefano Campanaro.
 </details>
 
 dRepanalyzer is a tool that can compute a resampling procedure and produce a rarefraction plot based on input files produced by dRep and CheckM softwares. This script is a project developed by students of a Molecular Biology Master's Programme at the University of Padova, during the lab classes in course Microbial Metagenomics. The project was developed under the supervision of Prof. Stefano Campanaro. 
