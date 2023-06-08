@@ -12,5 +12,21 @@ dRepanalyzer is a tool that can compute a resampling procedure and produce a rar
 The objective of this script is to produce a rarefraction plot which underlines the abundance of samples needed to dissect the microbial environment structure.
 
 Requirements to run this script are: The software was developed based on python 3.10. It requires several common libraries. To discover if a system has the right requirements, run -check_dependencies.
+  
+<details>
+  <summary>Click me</summary>
 
+  ### Heading
+  1. Foo
+  2. Bar
+     * Baz
+     * Qux
+
+  ### Some Code
+  ```js
+  function logSomething(something) {
+    console.log('Something', something);
+  }
+  ```
+</details>
 
