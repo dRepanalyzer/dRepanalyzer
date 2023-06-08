@@ -53,6 +53,11 @@ As a result of running the software, you get two types of files:
 *  **.res** contanining the results of the resampling processes in a tabular format
 
 
+## Acknowledgments
+
+This script was developed by students: Claudio Zampato, Lorenzo Banchieri and Aleksandra Grujic. 
+
+
 
 
 
