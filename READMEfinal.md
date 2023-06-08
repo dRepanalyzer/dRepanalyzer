@@ -1,6 +1,8 @@
 
 # dRepanalyzer
 
+![logo] (https://github.com/AleksG98/dRepanalyzer/blob/889c29d860daaf1854c097f15621c61d226c6cc3/dRepanalyzer_logo.png)
+
 <details>
 <summary>Disclaimer</summary>
 
@@ -12,15 +14,15 @@ This script is a project developed by students of a Molecular Biology Master's P
 dRepanalyzer is a tool that can compute a resampling procedure and produce a rarefraction plot based on input files produced by dRep and CheckM softwares.
 The objective of this script is to produce a rarefraction plot which underlines the abundance of samples needed to dissect the microbial environment structure.
 
-## What are the requirements
+## Requirements
 
 Requirements to run this script are: The software was developed based on python 3.10. It requires several common libraries. To discover if a system has the right requirements, run -check_dependencies.
 
-## What do the input files look like
+## Inputs
 
 In order to run dRepanalyzer, the output of two softwares is used: dRep and CheckM. As an output of dRep software, one of the files received is Cbd.csv, which shows the assignment of the genomes to the clusters. For each genome the table returns secondary clustering results based on the default threshold, together with additional information. CheckM software generates a table providing for each genome bin identified (+ a line for unbinned contigs) the bin Id, the bin size (Mbp) and 4 different relative abundance measures, repeated in series as many times as the samples employed for the analysis. 
 
-## How do you run the software
+## How to run the software
 
 The software is provided as an executable file. From the working directory, in the command line you can check how to run the software and an example by running:
 
@@ -42,7 +44,7 @@ dRepanalyzer -check_dependencies
 
 In case you are missing some libraries, it will raise an error showing which libraries are yet to be installed.
 
-## What output do you get?
+## What are the outputs
 
 As a result of running the software, you get two types of files:
 
